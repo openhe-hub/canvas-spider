@@ -1,13 +1,15 @@
+import time
+
 from PIL import Image
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+
+import logger
 
 headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
                   'Chrome/105.0.0.0 Safari/537.36 Edg/105.0.1343.42'
 }
-
-canvas_url = 'https://jicanvas.com/login/canvas'
 
 webdriver_path = "../lib/msedgedriver.exe"
 
@@ -15,10 +17,14 @@ webdriver_path = "../lib/msedgedriver.exe"
 class CanvasSpider(object):
     def __init__(self):
         self.driver = webdriver.Edge(webdriver_path)
+        self.canvas_root_url = "https://www.jicanvas.com/"
+        self.login_url = 'https://jicanvas.com/login/canvas'
+        self.course_cnt = 0
+        self.courses = []
 
     def get_captcha(self, captcha_path):
         # forward to login page
-        self.driver.get(canvas_url)
+        self.driver.get(self.login_url)
         link_node = self.driver.find_elements(By.XPATH, '//*[@id="footer"]/a[2]')[0]
         login_url = link_node.get_attribute('href')
         self.driver.get(login_url)
@@ -59,9 +65,29 @@ class CanvasSpider(object):
 
     def get_all_courses(self):
         courses_container = self.driver.find_elements(By.XPATH, '//*[@id="DashboardCard_Container"]/div/div/div')
-        cnt = len(courses_container)
-        print('[output]:\n' + '=' * 30 + 'Courses List' + '=' * 30)
-        print(f'Total found {cnt} courses:')
+        self.course_cnt = len(courses_container)
+        logger.log_separation('Courses List')
+        print(f'Total found {self.course_cnt} courses:')
         for i in range(0, len(courses_container)):
-            print(f'\t[{i+1}]{courses_container[i].get_attribute("aria-label")}')
-        print('=' * 30 + 'Courses List' + '=' * 30 + '\n')
+            self.courses.append(courses_container[i].get_attribute("aria-label"))
+            print(f'\t[{i + 1}]{self.courses[i]}')
+        logger.log_separation('Courses List')
+
+    def get_all_announcements(self):
+        for i in range(self.course_cnt):
+            # get href
+            course = self.driver.find_element(By.XPATH,
+                                              f'//*[@id="DashboardCard_Container"]/div/div/div[{i + 1}]/div/a')
+            course_url = course.get_attribute("href")
+            # get announcements
+            logger.log_separation(self.courses[i])
+            self.driver.get(course_url + '/announcements')
+            time.sleep(2)
+            titles = self.driver.find_elements(By.XPATH, '//*[@class="fOyUs_bGBk blnAQ_bGBk blnAQ_dnfM blnAQ_drOs"]')
+            print(f'[output]:total {len(titles)} announcements\n')
+            for j in range(len(titles)):
+                text = titles[j].text.replace(" ", "").split(",")
+                status = "read" if len(text) == 1 else "unread"
+                print(f'\t{text[-1]}')
+            self.driver.back()
+            logger.log_separation(self.courses[i])

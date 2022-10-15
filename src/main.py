@@ -6,3 +6,4 @@ if __name__ == '__main__':
     utils = utils.CanvasUtils()
     utils.login()
     utils.get_all_courses()
+    utils.get_all_announcements()
